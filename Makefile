@@ -22,7 +22,7 @@ APP        := RHSM
 TARGET     := rhsm
 DEBUG      ?= 0
 VARIANT    := $(if $(filter 1,$(DEBUG)),debug,release)
-# Version: VERSION file (0.<milestones done>.<patch>; 1.0.0 = all milestones done).
+# Version: VERSION file (0.0.<milestones done>; 1.0.0 = all milestones done).
 VERSION    ?= $(shell cat VERSION 2>/dev/null || echo 0.0.0)$(if $(filter 1,$(DEBUG)),-debug)
 
 DOCKER_IMAGE  ?= rhsm-toolchain:latest

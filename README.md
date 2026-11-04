@@ -6,7 +6,7 @@ RHSM is a native [OnionOS](https://github.com/OnionUI/Onion) app for the Miyoo M
 
 A desktop companion is planned. It will run in the background on your computer. When you put the SD card in your computer, or when a Mini Plus is on the same WiFi network, it will fetch names and box art and back up your saves to your computer. You will manage everything through a web page in your browser, laid out like the app on the device.
 
-> **Status:** early development, **version 0.2.0**. The device app can scan and list your saves, but can't manage them yet.
+> **Status:** early development, **version 0.0.2**. The device app can scan and list your saves, but can't manage them yet.
 
 ### What works today
 - Scans `Saves/CurrentProfile/saves/<core>/` and `states/<core>/` for battery saves (`.srm`, `.sav`) and save states (`.state.auto`, `.stateN` and their thumbnails).
@@ -17,18 +17,17 @@ A desktop companion is planned. It will run in the background on your computer. 
 
 ## Version and roadmap
 
-RHSM stays below 1.0 until every milestone below is done. The version is `0.<milestones done>.<patch>`:
+RHSM stays below 1.0 until every milestone below is done. The version is `0.0.<milestones done>`:
 
-- the middle number goes up by one as each milestone is finished
-- the last number counts fixes and small changes in between
+- the last number goes up by one as each milestone is finished
 - **1.0.0** means all nine milestones are done
 
 The current version is in the [VERSION](VERSION) file. The app shows it in its footer, and release zips are named after it.
 
 | # | Milestone | Status |
 |---|---|---|
-| 1 | Toolchain and hello world: Docker cross-compile, app in Onion's Apps list, deploy/log/gdb over SSH | Done (0.1) |
-| 2 | Scanner and database: saves grouped by game across cores, SQLite index, on-screen list with Onion box art | Done (0.2) |
+| 1 | Toolchain and hello world: Docker cross-compile, app in Onion's Apps list, deploy/log/gdb over SSH | Done (0.0.1) |
+| 2 | Scanner and database: saves grouped by game across cores, SQLite index, on-screen list with Onion box art | Done (0.0.2) |
 | 3 | System tabs: filter the list by system, L2/R2 to switch tabs | Next |
 | 4 | UI: grid and detail screens with Onion theme fonts, save-state thumbnails | Planned |
 | 5 | Local metadata: names from Onion's game lists and bundled libretro databases | Planned |
