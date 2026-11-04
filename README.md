@@ -6,7 +6,7 @@ RHSM is a native [OnionOS](https://github.com/OnionUI/Onion) app for the Miyoo M
 
 A desktop companion is planned. It will run in the background on your computer. When you put the SD card in your computer, or when a Mini Plus is on the same WiFi network, it will fetch names and box art and back up your saves to your computer. You will manage everything through a web page in your browser, laid out like the app on the device.
 
-> **Status:** early development, **version 0.0.2**. The device app can scan and list your saves, but can't manage them yet.
+> **Status:** early development, **version 0.0.3**. The device app can scan and list your saves, but can't manage them yet.
 
 ### What works today
 - Scans `Saves/CurrentProfile/saves/<core>/` and `states/<core>/` for battery saves (`.srm`, `.sav`) and save states (`.state.auto`, `.stateN` and their thumbnails).
@@ -28,8 +28,8 @@ The current version is in the [VERSION](VERSION) file. The app shows it in its f
 |---|---|---|
 | 1 | Toolchain and hello world: Docker cross-compile, app in Onion's Apps list, deploy/log/gdb over SSH | Done (0.0.1) |
 | 2 | Scanner and database: saves grouped by game across cores, SQLite index, on-screen list with Onion box art | Done (0.0.2) |
-| 3 | System tabs: filter the list by system, L2/R2 to switch tabs | In progress |
-| 4 | UI: grid and detail screens with Onion theme fonts, save-state thumbnails | Planned |
+| 3 | System tabs: filter the list by system, L2/R2 to switch tabs | Done (0.0.3) |
+| 4 | UI: grid and detail screens with Onion theme fonts, save-state thumbnails | Next |
 | 5 | Local metadata: names from Onion's game lists and bundled libretro databases | Planned |
 | 6 | Save management: backup, restore, delete, rename, copy to another core | Planned |
 | 7 | Scraper on the Mini Plus: names and box art over WiFi | Planned |
