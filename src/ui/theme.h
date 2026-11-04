@@ -24,6 +24,7 @@ static const SDL_Color C_BG        = {22, 24, 34, 0};
 static const SDL_Color C_PANEL     = {32, 35, 48, 0};
 static const SDL_Color C_RULE      = {60, 64, 84, 0};
 static const SDL_Color C_SCROLLBAR = {90, 96, 120, 0};
+static const SDL_Color C_TAB_BORDER = {72, 76, 96, 0}; /* faint | between tabs */
 static const SDL_Color C_HIGHLIGHT = {255, 196, 60, 0};
 static const SDL_Color C_DEBUG     = {120, 30, 30, 0};
 

@@ -4,10 +4,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include "platform/log.h"
 #include "platform/paths.h"
 #include "ui/image.h"
+#include "ui/system_names.h"
 #include "ui/theme.h"
 #include "util/format.h"
 #include "version.h"
@@ -15,8 +17,12 @@
 /* layout */
 #define TABS_Y      46
 #define TABS_H      26
-#define TAB_PAD     10 /* text padding inside a tab */
-#define TAB_GAP     6
+#define TAB_W       92 /* every tab is this wide; long names are cut with "..." */
+#define TAB_PAD     8  /* text padding inside a tab */
+#define TAB_GAP     8     /* space between tabs; a faint separator sits in the middle */
+#define TAB_MORE    "..." /* shown next to the last tab on a side that is cut off */
+#define TAB_PREV    "<"   /* L2 hint, far left */
+#define TAB_NEXT    ">"   /* R2 hint, far right */
 #define LIST_Y      (TABS_Y + TABS_H + 10)
 #define ROW_H       28
 #define LIST_ROWS   6
@@ -36,23 +42,29 @@
 
 /* ------------------------------------------------------------- tabs */
 
-static int cmp_tab(const void *a, const void *b)
+/* What a tab shows: "All", or the system's short name (ui/system_names.h). */
+static const char *tab_label(const LibraryTab *tab)
 {
-    return strcmp(((const LibraryTab *)a)->name, ((const LibraryTab *)b)->name);
+    return tab->code[0] ? system_short_name(tab->code) : "All";
 }
 
-/* tabs[0] = All, then one tab per distinct system, sorted by name. */
+static int cmp_tab(const void *a, const void *b)
+{
+    return strcasecmp(tab_label(a), tab_label(b));
+}
+
+/* tabs[0] = All, then one tab per distinct system, sorted by the name shown on the tab. */
 static void build_tabs(LibraryScreen *scr)
 {
     const Library *lib = &scr->lib;
-    snprintf(scr->tabs[0].name, sizeof scr->tabs[0].name, "All");
+    scr->tabs[0].code[0] = '\0';
     scr->tabs[0].count = lib->game_count;
     scr->tab_count = 1;
 
     for (int i = 0; i < lib->game_count; i++) {
         const char *sys = lib->games[i].system;
         int t = 1;
-        while (t < scr->tab_count && strcmp(scr->tabs[t].name, sys) != 0)
+        while (t < scr->tab_count && strcmp(scr->tabs[t].code, sys) != 0)
             t++;
         if (t == scr->tab_count) {
             if (scr->tab_count == LIBRARY_MAX_TABS) {
@@ -60,7 +72,7 @@ static void build_tabs(LibraryScreen *scr)
                          LIBRARY_MAX_TABS - 1, sys);
                 continue;
             }
-            snprintf(scr->tabs[t].name, sizeof scr->tabs[t].name, "%s", sys);
+            snprintf(scr->tabs[t].code, sizeof scr->tabs[t].code, "%s", sys);
             scr->tabs[t].count = 0;
             scr->tab_count++;
         }
@@ -75,12 +87,12 @@ static void apply_tab(LibraryScreen *scr, int t)
     scr->tab = t;
     scr->visible_count = 0;
     for (int i = 0; i < scr->lib.game_count; i++) {
-        if (t == 0 || strcmp(scr->lib.games[i].system, scr->tabs[t].name) == 0)
+        if (t == 0 || strcmp(scr->lib.games[i].system, scr->tabs[t].code) == 0)
             scr->visible[scr->visible_count++] = i;
     }
     scr->sel = 0;
     scr->top = 0;
-    LOG_DEBUG("tab %s: %d games", scr->tabs[t].name, scr->visible_count);
+    LOG_DEBUG("tab %s: %d games", tab_label(&scr->tabs[t]), scr->visible_count);
 }
 
 /* lib.games index of the selected game, or -1 if the tab is empty. */
@@ -180,36 +192,86 @@ static void render_header(const LibraryScreen *scr, Gfx *gfx)
     gfx_text(gfx, gfx->font_small, line, SCREEN_W - 16, 16, C_DIM, 0, ALIGN_RIGHT);
 }
 
-/* Tab strip: "All 13  GB 2  MD 1 ...". Scrolls so the active tab is visible. */
-static void render_tabs(const LibraryScreen *scr, Gfx *gfx)
+/* Faint vertical separator centred in the gap at x. */
+static void draw_tab_separator(Gfx *gfx, int x)
 {
-    char label[LIBRARY_MAX_TABS][24];
-    int width[LIBRARY_MAX_TABS] = {0}, start[LIBRARY_MAX_TABS] = {0};
+    SDL_Rect line = {(Sint16)x, TABS_Y + 4, 1, TABS_H - 8};
+    gfx_fill(gfx, &line, C_TAB_BORDER);
+}
 
-    int x = 16;
-    for (int t = 0; t < scr->tab_count; t++) {
-        snprintf(label[t], sizeof label[t], "%s %d", scr->tabs[t].name, scr->tabs[t].count);
-        width[t] = gfx_text_width(gfx->font_small, label[t]) + 2 * TAB_PAD;
-        start[t] = x;
-        x += width[t] + TAB_GAP;
+/* One fixed-width tab with a separator on each side:  | Master S... 2 |
+ * The name is cut with "..." if needed; the game count always shows. */
+static void draw_tab(const LibraryScreen *scr, Gfx *gfx, int t, int x)
+{
+    bool on = t == scr->tab;
+    SDL_Color fg = on ? C_DARK : C_DIM;
+    if (on) {
+        SDL_Rect pill = {(Sint16)x, TABS_Y, TAB_W, TABS_H};
+        gfx_fill(gfx, &pill, C_HIGHLIGHT);
     }
 
-    /* shift left if the active tab would run off the right edge */
-    int right_limit = SCREEN_W - 16;
-    int active_end = start[scr->tab] + width[scr->tab];
-    int offset = active_end > right_limit ? right_limit - active_end : 0;
+    char count[12];
+    snprintf(count, sizeof count, "%d", scr->tabs[t].count);
+    int count_w = gfx_text_width(gfx->font_small, count);
+    int name_w = TAB_W - 2 * TAB_PAD - count_w - 6;
+    gfx_text(gfx, gfx->font_small, tab_label(&scr->tabs[t]), x + TAB_PAD, TABS_Y + 2, fg, name_w,
+             ALIGN_LEFT);
+    gfx_text(gfx, gfx->font_small, count, x + TAB_W - TAB_PAD, TABS_Y + 2, fg, 0, ALIGN_RIGHT);
 
-    for (int t = 0; t < scr->tab_count; t++) {
-        int tx = start[t] + offset;
-        if (tx + width[t] < 0 || tx > SCREEN_W)
-            continue;
-        bool on = t == scr->tab;
-        if (on) {
-            SDL_Rect pill = {(Sint16)tx, TABS_Y, (Uint16)width[t], TABS_H};
-            gfx_fill(gfx, &pill, C_HIGHLIGHT);
+    /* neighbours share these lines: tab A's right one is tab B's left one */
+    draw_tab_separator(gfx, x - TAB_GAP / 2);
+    draw_tab_separator(gfx, x + TAB_W + TAB_GAP / 2);
+}
+
+/* Tab ring: the current tab sits in the middle, the next tabs (R2) run out to
+ * the right and the previous ones (L2) to the left, wrapping round so every tab
+ * appears once. "<" and ">" mark L2/R2 at the edges; a side that can't fit all
+ * its tabs ends with "...":
+ * All tabs are TAB_W wide:
+ *   <  ... | PS1   3 | SNES  4 | [All  15] | Game B... 2 | GBC   1 | ...  >   */
+static void render_tabs(const LibraryScreen *scr, Gfx *gfx)
+{
+    const int n = scr->tab_count;
+
+    /* each side keeps room for its arrow and a "..." */
+    const int arrow_w = gfx_text_width(gfx->font_small, TAB_PREV);
+    const int more_w = gfx_text_width(gfx->font_small, TAB_MORE);
+    const int reserve = 16 + arrow_w + TAB_GAP + more_w + TAB_GAP;
+    const int left_limit = reserve, right_limit = SCREEN_W - reserve;
+
+    if (n > 1) {
+        gfx_text(gfx, gfx->font_small, TAB_PREV, 16, TABS_Y + 2, C_DIM, 0, ALIGN_LEFT);
+        gfx_text(gfx, gfx->font_small, TAB_NEXT, SCREEN_W - 16, TABS_Y + 2, C_DIM, 0, ALIGN_RIGHT);
+    }
+
+    /* current tab, centred */
+    int cx = SCREEN_W / 2 - TAB_W / 2;
+    draw_tab(scr, gfx, scr->tab, cx);
+
+    /* the other n-1 tabs split between the sides: right gets the extra one */
+    int right_n = n / 2, left_n = (n - 1) / 2;
+
+    int x = cx + TAB_W + TAB_GAP; /* left edge of the next tab */
+    for (int k = 1; k <= right_n; k++) {
+        int t = (scr->tab + k) % n;
+        if (x + TAB_W > right_limit) {
+            gfx_text(gfx, gfx->font_small, TAB_MORE, x, TABS_Y + 2, C_DIM, 0, ALIGN_LEFT);
+            break;
         }
-        gfx_text(gfx, gfx->font_small, label[t], tx + TAB_PAD, TABS_Y + 2, on ? C_DARK : C_DIM, 0,
-                 ALIGN_LEFT);
+        draw_tab(scr, gfx, t, x);
+        x += TAB_W + TAB_GAP;
+    }
+
+    x = cx - TAB_GAP; /* right edge of the previous tab */
+    for (int k = 1; k <= left_n; k++) {
+        int t = (scr->tab - k + n) % n;
+        if (x - TAB_W < left_limit) {
+            gfx_text(gfx, gfx->font_small, TAB_MORE, x, TABS_Y + 2, C_DIM, 0, ALIGN_RIGHT);
+            break;
+        }
+        x -= TAB_W;
+        draw_tab(scr, gfx, t, x);
+        x -= TAB_GAP;
     }
 
     SDL_Rect rule = {16, LIST_Y - 6, SCREEN_W - 32, 1};

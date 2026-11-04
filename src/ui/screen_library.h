@@ -14,7 +14,8 @@
 #define LIBRARY_MAX_TABS 48
 
 typedef struct {
-    char name[16]; /* "All" or an Onion system folder name */
+    char code[16]; /* Onion system folder name ("" for the All tab); the shown
+                      name comes from ui/system_names.h */
     int count;     /* games in this tab */
 } LibraryTab;
 
@@ -22,7 +23,7 @@ typedef struct {
     Library lib;      /* owned by the screen */
     char error[160];  /* shown instead of the list when non-empty */
 
-    LibraryTab tabs[LIBRARY_MAX_TABS]; /* tabs[0] is "All", the rest sorted by name */
+    LibraryTab tabs[LIBRARY_MAX_TABS]; /* tabs[0] is "All", the rest sorted by label */
     int tab_count;
     int tab;          /* current tab */
     int *visible;     /* indexes into lib.games for the current tab */
