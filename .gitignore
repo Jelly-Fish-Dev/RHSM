@@ -1,0 +1,35 @@
+# Local planning notes
+PLAN.md
+
+# Per-machine make settings (device IP)
+local.mk
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# C / device build
+build/
+dist/
+*.o
+*.a
+*.so
+*.d
+log.txt
+
+# Python companion
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+companion/build/
+companion/dist/
+*.spec
+
+# Local settings / secrets (ScreenScraper credentials etc.)
+settings.local.json
+.env

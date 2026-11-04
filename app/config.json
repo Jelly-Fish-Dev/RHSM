@@ -1,0 +1,6 @@
+{
+    "label": "RHSM",
+    "icon": "icon.png",
+    "launch": "launch.sh",
+    "description": "Retro Handheld Save Manager"
+}
