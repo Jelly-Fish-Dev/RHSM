@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "platform/log.h"
@@ -12,9 +13,13 @@
 #include "version.h"
 
 /* layout */
-#define LIST_Y      52
+#define TABS_Y      46
+#define TABS_H      26
+#define TAB_PAD     10 /* text padding inside a tab */
+#define TAB_GAP     6
+#define LIST_Y      (TABS_Y + TABS_H + 10)
 #define ROW_H       28
-#define LIST_ROWS   7
+#define LIST_ROWS   6
 #define PANEL_X     10
 #define PANEL_Y     (LIST_Y + LIST_ROWS * ROW_H + 8)
 #define PANEL_W     (SCREEN_W - 2 * PANEL_X)
@@ -29,6 +34,61 @@
 #define ART_Y       (PANEL_Y + 6)
 #define TEXT_RIGHT  (ART_X - 10) /* right edge of the file list */
 
+/* ------------------------------------------------------------- tabs */
+
+static int cmp_tab(const void *a, const void *b)
+{
+    return strcmp(((const LibraryTab *)a)->name, ((const LibraryTab *)b)->name);
+}
+
+/* tabs[0] = All, then one tab per distinct system, sorted by name. */
+static void build_tabs(LibraryScreen *scr)
+{
+    const Library *lib = &scr->lib;
+    snprintf(scr->tabs[0].name, sizeof scr->tabs[0].name, "All");
+    scr->tabs[0].count = lib->game_count;
+    scr->tab_count = 1;
+
+    for (int i = 0; i < lib->game_count; i++) {
+        const char *sys = lib->games[i].system;
+        int t = 1;
+        while (t < scr->tab_count && strcmp(scr->tabs[t].name, sys) != 0)
+            t++;
+        if (t == scr->tab_count) {
+            if (scr->tab_count == LIBRARY_MAX_TABS) {
+                LOG_WARN("tabs: more than %d systems, %s only shown under All",
+                         LIBRARY_MAX_TABS - 1, sys);
+                continue;
+            }
+            snprintf(scr->tabs[t].name, sizeof scr->tabs[t].name, "%s", sys);
+            scr->tabs[t].count = 0;
+            scr->tab_count++;
+        }
+        scr->tabs[t].count++;
+    }
+    qsort(scr->tabs + 1, (size_t)(scr->tab_count - 1), sizeof scr->tabs[0], cmp_tab);
+}
+
+/* Switches to tab t: rebuilds the visible list and goes back to the top. */
+static void apply_tab(LibraryScreen *scr, int t)
+{
+    scr->tab = t;
+    scr->visible_count = 0;
+    for (int i = 0; i < scr->lib.game_count; i++) {
+        if (t == 0 || strcmp(scr->lib.games[i].system, scr->tabs[t].name) == 0)
+            scr->visible[scr->visible_count++] = i;
+    }
+    scr->sel = 0;
+    scr->top = 0;
+    LOG_DEBUG("tab %s: %d games", scr->tabs[t].name, scr->visible_count);
+}
+
+/* lib.games index of the selected game, or -1 if the tab is empty. */
+static int selected_game(const LibraryScreen *scr)
+{
+    return scr->visible_count ? scr->visible[scr->sel] : -1;
+}
+
 /* ------------------------------------------------------------- state */
 
 void screen_library_init(LibraryScreen *scr, Library *lib, const char *error)
@@ -38,6 +98,11 @@ void screen_library_init(LibraryScreen *scr, Library *lib, const char *error)
     memset(lib, 0, sizeof *lib);
     snprintf(scr->error, sizeof scr->error, "%s", error ? error : "");
     scr->art_for = -1;
+
+    scr->visible = calloc((size_t)(scr->lib.game_count ? scr->lib.game_count : 1),
+                          sizeof *scr->visible);
+    build_tabs(scr);
+    apply_tab(scr, 0);
 }
 
 void screen_library_free(LibraryScreen *scr)
@@ -45,12 +110,14 @@ void screen_library_free(LibraryScreen *scr)
     if (scr->art)
         SDL_FreeSurface(scr->art);
     scr->art = NULL;
+    free(scr->visible);
+    scr->visible = NULL;
     library_free(&scr->lib);
 }
 
 static void move_selection(LibraryScreen *scr, int delta)
 {
-    int n = scr->lib.game_count;
+    int n = scr->visible_count;
     if (n == 0)
         return;
     scr->sel += delta;
@@ -73,6 +140,8 @@ ScreenResult screen_library_handle(LibraryScreen *scr, Button btn)
     case BTN_L1:    move_selection(scr, -LIST_ROWS); break;
     case BTN_RIGHT:
     case BTN_R1:    move_selection(scr, +LIST_ROWS); break;
+    case BTN_L2:    apply_tab(scr, (scr->tab - 1 + scr->tab_count) % scr->tab_count); break;
+    case BTN_R2:    apply_tab(scr, (scr->tab + 1) % scr->tab_count); break;
     case BTN_MENU:  return SCREEN_EXIT;
     default: break;
     }
@@ -82,17 +151,18 @@ ScreenResult screen_library_handle(LibraryScreen *scr, Button btn)
 /* Loads (once per selection) the selected game's Onion box art. */
 static void update_art(LibraryScreen *scr)
 {
-    if (scr->art_for == scr->sel || scr->lib.game_count == 0)
+    int gi = selected_game(scr);
+    if (gi < 0 || scr->art_for == gi)
         return;
     if (scr->art) {
         SDL_FreeSurface(scr->art);
         scr->art = NULL;
     }
-    const LibGame *g = &scr->lib.games[scr->sel];
+    const LibGame *g = &scr->lib.games[gi];
     char path[768];
     paths_boxart(path, sizeof path, g->system, g->rom_name);
     scr->art = image_load_fit(path, ART_W, ART_H);
-    scr->art_for = scr->sel;
+    scr->art_for = gi;
     LOG_DEBUG("art: %s -> %s", path, scr->art ? "loaded" : "none");
 }
 
@@ -102,23 +172,59 @@ static void render_header(const LibraryScreen *scr, Gfx *gfx)
 {
     char line[96];
     gfx_text(gfx, gfx->font, "RHSM", 16, 10, C_WHITE, 0, ALIGN_LEFT);
+    int title_w = gfx_text_width(gfx->font, "RHSM");
+    gfx_text(gfx, gfx->font_small, "v" RHSM_VERSION, 16 + title_w + 8, 17, C_DIM, 0, ALIGN_LEFT);
+
     snprintf(line, sizeof line, "%d games  ·  %d files", scr->lib.game_count,
              scr->lib.file_count);
     gfx_text(gfx, gfx->font_small, line, SCREEN_W - 16, 16, C_DIM, 0, ALIGN_RIGHT);
+}
+
+/* Tab strip: "All 13  GB 2  MD 1 ...". Scrolls so the active tab is visible. */
+static void render_tabs(const LibraryScreen *scr, Gfx *gfx)
+{
+    char label[LIBRARY_MAX_TABS][24];
+    int width[LIBRARY_MAX_TABS] = {0}, start[LIBRARY_MAX_TABS] = {0};
+
+    int x = 16;
+    for (int t = 0; t < scr->tab_count; t++) {
+        snprintf(label[t], sizeof label[t], "%s %d", scr->tabs[t].name, scr->tabs[t].count);
+        width[t] = gfx_text_width(gfx->font_small, label[t]) + 2 * TAB_PAD;
+        start[t] = x;
+        x += width[t] + TAB_GAP;
+    }
+
+    /* shift left if the active tab would run off the right edge */
+    int right_limit = SCREEN_W - 16;
+    int active_end = start[scr->tab] + width[scr->tab];
+    int offset = active_end > right_limit ? right_limit - active_end : 0;
+
+    for (int t = 0; t < scr->tab_count; t++) {
+        int tx = start[t] + offset;
+        if (tx + width[t] < 0 || tx > SCREEN_W)
+            continue;
+        bool on = t == scr->tab;
+        if (on) {
+            SDL_Rect pill = {(Sint16)tx, TABS_Y, (Uint16)width[t], TABS_H};
+            gfx_fill(gfx, &pill, C_HIGHLIGHT);
+        }
+        gfx_text(gfx, gfx->font_small, label[t], tx + TAB_PAD, TABS_Y + 2, on ? C_DARK : C_DIM, 0,
+                 ALIGN_LEFT);
+    }
+
     SDL_Rect rule = {16, LIST_Y - 6, SCREEN_W - 32, 1};
     gfx_fill(gfx, &rule, C_RULE);
 }
 
 static void render_list(const LibraryScreen *scr, Gfx *gfx)
 {
-    const Library *lib = &scr->lib;
     char line[64];
 
-    for (int r = 0; r < LIST_ROWS && scr->top + r < lib->game_count; r++) {
-        int i = scr->top + r;
-        const LibGame *g = &lib->games[i];
+    for (int r = 0; r < LIST_ROWS && scr->top + r < scr->visible_count; r++) {
+        int row = scr->top + r;
+        const LibGame *g = &scr->lib.games[scr->visible[row]];
         int y = LIST_Y + r * ROW_H;
-        bool on = i == scr->sel;
+        bool on = row == scr->sel;
         if (on) {
             SDL_Rect hl = {10, (Sint16)(y - 1), SCREEN_W - 20, ROW_H};
             gfx_fill(gfx, &hl, C_HIGHLIGHT);
@@ -131,10 +237,10 @@ static void render_list(const LibraryScreen *scr, Gfx *gfx)
     }
 
     /* scroll position */
-    if (lib->game_count > LIST_ROWS) {
+    if (scr->visible_count > LIST_ROWS) {
         int track_h = LIST_ROWS * ROW_H;
-        int bar_h = track_h * LIST_ROWS / lib->game_count;
-        int bar_y = LIST_Y + track_h * scr->top / lib->game_count;
+        int bar_h = track_h * LIST_ROWS / scr->visible_count;
+        int bar_y = LIST_Y + track_h * scr->top / scr->visible_count;
         SDL_Rect bar = {SCREEN_W - 6, (Sint16)bar_y, 3, (Uint16)(bar_h < 8 ? 8 : bar_h)};
         gfx_fill(gfx, &bar, C_SCROLLBAR);
     }
@@ -155,7 +261,10 @@ static void render_art(const LibraryScreen *scr, Gfx *gfx)
 
 static void render_details(LibraryScreen *scr, Gfx *gfx)
 {
-    const LibGame *g = &scr->lib.games[scr->sel];
+    int gi = selected_game(scr);
+    if (gi < 0)
+        return;
+    const LibGame *g = &scr->lib.games[gi];
     char line[64];
 
     SDL_Rect panel = {PANEL_X, PANEL_Y, PANEL_W, PANEL_H};
@@ -192,11 +301,8 @@ static void render_footer(Gfx *gfx)
     gfx_fill(gfx, &badge, C_DEBUG);
     gfx_text(gfx, gfx->font_small, "DEBUG", SCREEN_W / 2, 13, C_WHITE, 0, ALIGN_CENTER);
 #endif
-    char line[96];
-    snprintf(line, sizeof line, "UP/DOWN select  ·  L1/R1 page  ·  MENU exit  ·  v%s",
-             RHSM_VERSION);
-    gfx_text(gfx, gfx->font_small, line, SCREEN_W / 2, FOOTER_Y, C_DIM, SCREEN_W - 32,
-             ALIGN_CENTER);
+    gfx_text(gfx, gfx->font_small, "UP/DOWN select  ·  L1/R1 page  ·  L2/R2 system  ·  MENU exit",
+             SCREEN_W / 2, FOOTER_Y, C_DIM, SCREEN_W - 32, ALIGN_CENTER);
 }
 
 void screen_library_render(LibraryScreen *scr, Gfx *gfx)
@@ -205,9 +311,12 @@ void screen_library_render(LibraryScreen *scr, Gfx *gfx)
     render_header(scr, gfx);
 
     if (scr->error[0] || scr->lib.game_count == 0) {
+        SDL_Rect rule = {16, LIST_Y - 6, SCREEN_W - 32, 1};
+        gfx_fill(gfx, &rule, C_RULE);
         gfx_text(gfx, gfx->font, scr->error[0] ? scr->error : "No saves found", SCREEN_W / 2,
                  200, C_DIM, SCREEN_W - 40, ALIGN_CENTER);
     } else {
+        render_tabs(scr, gfx);
         render_list(scr, gfx);
         render_details(scr, gfx);
     }

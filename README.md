@@ -28,7 +28,7 @@ The current version is in the [VERSION](VERSION) file. The app shows it in its f
 |---|---|---|
 | 1 | Toolchain and hello world: Docker cross-compile, app in Onion's Apps list, deploy/log/gdb over SSH | Done (0.0.1) |
 | 2 | Scanner and database: saves grouped by game across cores, SQLite index, on-screen list with Onion box art | Done (0.0.2) |
-| 3 | System tabs: filter the list by system, L2/R2 to switch tabs | Next |
+| 3 | System tabs: filter the list by system, L2/R2 to switch tabs | In progress |
 | 4 | UI: grid and detail screens with Onion theme fonts, save-state thumbnails | Planned |
 | 5 | Local metadata: names from Onion's game lists and bundled libretro databases | Planned |
 | 6 | Save management: backup, restore, delete, rename, copy to another core | Planned |
@@ -81,7 +81,7 @@ make clean
 
 To install, copy `dist/App/RHSM/` to `/mnt/SDCARD/App/` on the SD card, or unzip the release zip onto the root of the card. RHSM then shows up in Onion's **Apps** list.
 
-Controls: **UP/DOWN** select a game, **L1/R1** (or LEFT/RIGHT) page through the list, **MENU** exit.
+Controls: **UP/DOWN** select a game, **L1/R1** (or LEFT/RIGHT) page through the list, **L2/R2** switch between system tabs (All, GB, PS, SFC, ...), **MENU** exit.
 
 ### Source layout
 The device app is split into layers. Each layer may only include headers from its own layer and the layers listed above it, and `make check` enforces this.

@@ -7,16 +7,31 @@
 #include "platform/input.h"
 #include "ui/gfx.h"
 
-/* The main screen: scrollable game list on top, detail panel for the selected
- * game (save files + Onion box art) at the bottom. */
+/* The main screen: a strip of system tabs (All, GB, PS, SFC, ...), the game
+ * list for the current tab, and a detail panel for the selected game (save
+ * files + Onion box art). L2/R2 switch tabs. */
+
+#define LIBRARY_MAX_TABS 48
+
+typedef struct {
+    char name[16]; /* "All" or an Onion system folder name */
+    int count;     /* games in this tab */
+} LibraryTab;
 
 typedef struct {
     Library lib;      /* owned by the screen */
     char error[160];  /* shown instead of the list when non-empty */
-    int sel;          /* selected game */
+
+    LibraryTab tabs[LIBRARY_MAX_TABS]; /* tabs[0] is "All", the rest sorted by name */
+    int tab_count;
+    int tab;          /* current tab */
+    int *visible;     /* indexes into lib.games for the current tab */
+    int visible_count;
+
+    int sel;          /* selected row, an index into visible */
     int top;          /* first visible row */
     SDL_Surface *art; /* box art for art_for, already scaled to the art box */
-    int art_for;      /* game index the art was loaded for, -1 = none yet */
+    int art_for;      /* lib.games index the art was loaded for, -1 = none yet */
 } LibraryScreen;
 
 typedef enum { SCREEN_STAY, SCREEN_EXIT } ScreenResult;
