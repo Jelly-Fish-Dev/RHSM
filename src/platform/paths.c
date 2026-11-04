@@ -18,6 +18,12 @@ const char *paths_sd(char *buf, size_t n, const char *rel)
     return buf;
 }
 
+const char *paths_boxart(char *buf, size_t n, const char *system, const char *rom_name)
+{
+    snprintf(buf, n, "%s/%s/%s/Imgs/%s.png", paths_sdcard(), PATH_ROMS, system, rom_name);
+    return buf;
+}
+
 int paths_mkdirs(const char *dir)
 {
     char tmp[512];

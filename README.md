@@ -6,7 +6,7 @@ RHSM is a native [OnionOS](https://github.com/OnionUI/Onion) app for the Miyoo M
 
 A desktop companion is planned. It will run in the background on your computer. When you put the SD card in your computer, or when a Mini Plus is on the same WiFi network, it will fetch names and box art and back up your saves to your computer. You will manage everything through a web page in your browser, laid out like the app on the device.
 
-> **Status:** early development. The device app can scan and list your saves, but can't manage them yet.
+> **Status:** early development, **version 0.2.0**. The device app can scan and list your saves, but can't manage them yet.
 
 ### What works today
 - Scans `Saves/CurrentProfile/saves/<core>/` and `states/<core>/` for battery saves (`.srm`, `.sav`) and save states (`.state.auto`, `.stateN` and their thumbnails).
@@ -14,6 +14,28 @@ A desktop companion is planned. It will run in the background on your computer. 
 - Works out each game's system by finding its ROM in `Roms/<SYSTEM>/`.
 - Stores the index in SQLite at `Saves/RHSM/index.db`.
 - Shows a game list on the device, with a detail panel for the selected game and the box art Onion has already downloaded (`Roms/<SYSTEM>/Imgs/<ROM name>.png`).
+
+## Version and roadmap
+
+RHSM stays below 1.0 until every milestone below is done. The version is `0.<milestones done>.<patch>`:
+
+- the middle number goes up by one as each milestone is finished
+- the last number counts fixes and small changes in between
+- **1.0.0** means all nine milestones are done
+
+The current version is in the [VERSION](VERSION) file. The app shows it in its footer, and release zips are named after it.
+
+| # | Milestone | Status |
+|---|---|---|
+| 1 | Toolchain and hello world: Docker cross-compile, app in Onion's Apps list, deploy/log/gdb over SSH | Done (0.1) |
+| 2 | Scanner and database: saves grouped by game across cores, SQLite index, on-screen list with Onion box art | Done (0.2) |
+| 3 | System tabs: filter the list by system, L2/R2 to switch tabs | Next |
+| 4 | UI: grid and detail screens with Onion theme fonts, save-state thumbnails | Planned |
+| 5 | Local metadata: names from Onion's game lists and bundled libretro databases | Planned |
+| 6 | Save management: backup, restore, delete, rename, copy to another core | Planned |
+| 7 | Scraper on the Mini Plus: names and box art over WiFi | Planned |
+| 8 | Desktop companion: background daemon with a web UI like the device app | Planned |
+| 9 | Export and sync: zip export, WebDAV upload, release packaging | Planned |
 
 ## Getting the code
 
@@ -54,12 +76,28 @@ make            # cross-compile and stage dist/App/RHSM/
 make debug      # same, as a debug build (-O0 -g3, not stripped)
 make zip        # dist/RHSM-<version>.zip, unzip onto the SD card root
 make shell      # shell inside the toolchain container
+make check      # check the source layers (see below); runs on your computer, no Docker needed
 make clean
 ```
 
 To install, copy `dist/App/RHSM/` to `/mnt/SDCARD/App/` on the SD card, or unzip the release zip onto the root of the card. RHSM then shows up in Onion's **Apps** list.
 
 Controls: **UP/DOWN** select a game, **L1/R1** (or LEFT/RIGHT) page through the list, **MENU** exit.
+
+### Source layout
+The device app is split into layers. Each layer may only include headers from its own layer and the layers listed above it, and `make check` enforces this.
+
+| Layer | Folder | What it does |
+|---|---|---|
+| util | `src/util/` | String and formatting helpers |
+| platform | `src/platform/` | Device and OS: button mapping, logging, SD card paths (including Onion's box art location) |
+| model | `src/model/` | The library data types: games, save files, save kinds |
+| scan | `src/scan/` | Filename parsing, ROM folder lookup, folder walk, core-to-system table |
+| db | `src/db/` | SQLite schema, storing a scan, loading the library |
+| core | `src/core/` | The scan → database → library pipeline, and the text listing |
+| ui | `src/ui/` | Drawing primitives, theme, image loading, and the screens |
+| app | `src/app/` | The on-device app loop, and `--dump` |
+| main | `src/main.c` | Chooses between the app and `--dump` |
 
 ### Testing on the device (Mini Plus over WiFi)
 All testing happens on the device; there is no desktop build. On the Mini Plus, turn on SSH in **Apps → Tweaks → Network**. The default login is `onion` / `onion`. Run `ssh-copy-id onion@<ip>` once so you aren't asked for the password every time.

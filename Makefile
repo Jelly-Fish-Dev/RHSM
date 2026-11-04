@@ -22,7 +22,8 @@ APP        := RHSM
 TARGET     := rhsm
 DEBUG      ?= 0
 VARIANT    := $(if $(filter 1,$(DEBUG)),debug,release)
-VERSION    ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)$(if $(filter 1,$(DEBUG)),-debug)
+# Version: VERSION file (0.<milestones done>.<patch>; 1.0.0 = all milestones done).
+VERSION    ?= $(shell cat VERSION 2>/dev/null || echo 0.0.0)$(if $(filter 1,$(DEBUG)),-debug)
 
 DOCKER_IMAGE  ?= rhsm-toolchain:latest
 TOOLCHAIN_DIR := /opt/miyoomini-toolchain
@@ -52,7 +53,7 @@ endif
 DOCKER_RUN := docker run --rm --platform linux/amd64 \
 	-v "$(CURDIR)":/root/workspace -w /root/workspace $(DOCKER_IMAGE)
 
-.PHONY: all build dist debug zip shell clean deploy log debug-on debug-off gdb check-host \
+.PHONY: all build dist debug zip shell clean deploy log debug-on debug-off gdb check check-host \
 	toolchain toolchain-rebuild _build _dist _gdbserver
 
 ifeq ($(wildcard $(TOOLCHAIN_DIR)),)
@@ -64,6 +65,9 @@ all: dist
 toolchain:
 	@docker image inspect $(DOCKER_IMAGE) >/dev/null 2>&1 || \
 		docker build --platform linux/amd64 -t $(DOCKER_IMAGE) docker
+
+check:
+	@sh scripts/check_layers.sh
 
 toolchain-rebuild:
 	docker build --platform linux/amd64 --pull -t $(DOCKER_IMAGE) docker

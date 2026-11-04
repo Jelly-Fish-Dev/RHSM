@@ -236,12 +236,3 @@ fail:
     library_free(lib);
     return -1;
 }
-
-void library_free(Library *lib)
-{
-    for (int i = 0; i < lib->game_count; i++)
-        free(lib->games[i].files);
-    free(lib->games);
-    lib->games = NULL;
-    lib->game_count = lib->file_count = 0;
-}

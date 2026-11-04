@@ -2,16 +2,11 @@
 #define RHSM_SCAN_SCANNER_H
 
 #include <stdbool.h>
-#include <stddef.h>
 
-typedef enum {
-    KIND_SRAM,  /* .srm / .sav battery save */
-    KIND_STATE, /* save state (.state, .stateN, .state.auto) */
-    KIND_OTHER, /* other per-game files in saves/ (.ldci, .rtc, ...) */
-} SaveKind;
+#include "model/library.h"
 
-#define SLOT_NONE -2 /* not a state */
-#define SLOT_AUTO -1 /* .state.auto */
+/* Walks RetroArch's per-core save and state folders and produces one entry per
+ * save file, already tagged with its system, title and game key. */
 
 typedef struct {
     char core[64];      /* save folder name = RetroArch core */
@@ -34,20 +29,9 @@ typedef struct {
 } ScanList;
 
 /* Scans <profile_dir>/saves/<core>/ and <profile_dir>/states/<core>/.
- * roms_dir is used to decide which system a save belongs to.
+ * roms_dir (Onion's Roms/) decides which system each save belongs to.
  * Returns 0 on success. */
 int scan_saves(const char *profile_dir, const char *roms_dir, ScanList *out);
 void scan_list_free(ScanList *list);
-
-const char *save_kind_name(SaveKind kind);
-
-/* Filename parsing (exposed for tests).
- * parse_state_name("Foo (USA).state.auto") -> stem "Foo (USA)", slot SLOT_AUTO
- * Returns false if the name is not a state (thumbnails *.png return false). */
-bool parse_state_name(const char *fname, char *stem, size_t stem_n, int *slot);
-/* parse_save_name("Foo (USA).srm") -> stem "Foo (USA)", kind KIND_SRAM */
-bool parse_save_name(const char *fname, char *stem, size_t stem_n, SaveKind *kind);
-/* "Final Fantasy III (USA) (Rev 1)" -> "Final Fantasy III" */
-void clean_title(const char *rom_name, char *out, size_t n);
 
 #endif

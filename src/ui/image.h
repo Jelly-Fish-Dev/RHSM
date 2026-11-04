@@ -8,7 +8,4 @@
  * per-pixel alpha (blits with blending), or NULL if the file can't be loaded. */
 SDL_Surface *image_load_fit(const char *path, int max_w, int max_h);
 
-/* Onion's box art location: <sdcard>/Roms/<system>/Imgs/<rom_name>.png */
-void image_boxart_path(char *out, size_t n, const char *system, const char *rom_name);
-
 #endif

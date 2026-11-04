@@ -6,17 +6,11 @@
 #include <SDL/SDL_image.h>
 
 #include "platform/log.h"
-#include "platform/paths.h"
 
 #define AMASK 0xFF000000u
 #define RMASK 0x00FF0000u
 #define GMASK 0x0000FF00u
 #define BMASK 0x000000FFu
-
-void image_boxart_path(char *out, size_t n, const char *system, const char *rom_name)
-{
-    snprintf(out, n, "%s/%s/%s/Imgs/%s.png", paths_sdcard(), PATH_ROMS, system, rom_name);
-}
 
 /* Area-average scale of a 32-bit ARGB surface. Each destination pixel is the
  * mean of the source pixels it covers, so downscaled box art stays smooth. */
