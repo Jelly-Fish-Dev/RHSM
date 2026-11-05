@@ -38,10 +38,15 @@ The current version is in the [VERSION](VERSION) file. The app shows it in its f
 
 ## Getting the code
 
+RHSM shares its drawing, font, button and logging code with Life Counter through the Miyoo-UI library. Clone it next to RHSM:
+
 ```sh
 git clone https://github.com/Jelly-Fish-Dev/RHSM.git
+git clone https://github.com/Jelly-Fish-Dev/Miyoo-UI.git   # must sit at ../Miyoo-UI
 cd RHSM
 ```
+
+To keep Miyoo-UI somewhere else, pass `MUI_DIR=<path>` to make or set it in `local.mk`.
 
 ## Components
 
@@ -89,14 +94,16 @@ The device app is split into layers. Each layer may only include headers from it
 | Layer | Folder | What it does |
 |---|---|---|
 | util | `src/util/` | String and formatting helpers |
-| platform | `src/platform/` | Device and OS: button mapping, logging, SD card paths (including Onion's box art location) |
+| platform | `src/platform/` | SD card paths (including Onion's box art location) |
 | model | `src/model/` | The library data types: games, save files, save kinds |
 | scan | `src/scan/` | Filename parsing, ROM folder lookup, folder walk, core-to-system table |
 | db | `src/db/` | SQLite schema, storing a scan, loading the library |
 | core | `src/core/` | The scan → database → library pipeline, and the text listing |
-| ui | `src/ui/` | Drawing primitives, theme, image loading, and the screens |
+| ui | `src/ui/` | RHSM's theme colours, system names, and the screens |
 | app | `src/app/` | The on-device app loop, and `--dump` |
 | main | `src/main.c` | Chooses between the app and `--dump` |
+
+Drawing (`mui/gfx.h`), box art loading (`mui/image.h`), button mapping (`mui/input.h`), logging (`mui/log.h`), the base theme and the font all come from Miyoo-UI. Any layer may include it.
 
 ### Testing on the device (Mini Plus over WiFi)
 All testing happens on the device; there is no desktop build. On the Mini Plus, turn on SSH in **Apps → Tweaks → Network**. The default login is `onion` / `onion`. Run `ssh-copy-id onion@<ip>` once so you aren't asked for the password every time.
@@ -150,7 +157,7 @@ This project was developed with the help of AI. Claude (Anthropic) was used for 
 ## Third-party components
 
 - [SQLite](https://www.sqlite.org/) 3.46.1 amalgamation in `third_party/sqlite/` (public domain)
-- [Exo 2](https://github.com/googlefonts/Exo-2.0) font in `res/fonts/`, bold instance (SIL Open Font License 1.1, see `res/fonts/OFL.txt`)
+- [Exo 2](https://github.com/googlefonts/Exo-2.0) font, bold instance, shipped by Miyoo-UI in `res/fonts/` (SIL Open Font License 1.1, see `OFL.txt` there)
 - Built with OnionOS's [Miyoo Mini toolchain](https://hub.docker.com/r/aemiii91/miyoomini-toolchain) and its SDL 1.2 libraries
 
 ## License

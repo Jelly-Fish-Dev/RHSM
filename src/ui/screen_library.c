@@ -6,9 +6,9 @@
 #include <string.h>
 #include <strings.h>
 
-#include "platform/log.h"
+#include "mui/log.h"
 #include "platform/paths.h"
-#include "ui/image.h"
+#include "mui/image.h"
 #include "ui/system_names.h"
 #include "ui/theme.h"
 #include "util/format.h"
@@ -157,7 +157,7 @@ ScreenResult screen_library_handle(LibraryScreen *scr, Button btn)
     case BTN_MENU:  return SCREEN_EXIT;
     default: break;
     }
-    return SCREEN_STAY;
+    return SCREEN_OK;
 }
 
 /* Loads (once per selection) the selected game's Onion box art. */

@@ -1,7 +1,7 @@
 #ifndef RHSM_UI_SCREEN_MESSAGE_H
 #define RHSM_UI_SCREEN_MESSAGE_H
 
-#include "ui/gfx.h"
+#include "mui/gfx.h"
 
 #define SCREEN_MESSAGE "RHSM"
 

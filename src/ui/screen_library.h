@@ -4,8 +4,9 @@
 #include <SDL/SDL.h>
 
 #include "model/library.h"
-#include "platform/input.h"
-#include "ui/gfx.h"
+#include "mui/input.h"
+#include "mui/gfx.h"
+#include "mui/screen.h"
 
 /* The main screen: a strip of system tabs (All, GB, PS, SFC, ...), the game
  * list for the current tab, and a detail panel for the selected game (save
@@ -34,8 +35,6 @@ typedef struct {
     SDL_Surface *art; /* box art for art_for, already scaled to the art box */
     int art_for;      /* lib.games index the art was loaded for, -1 = none yet */
 } LibraryScreen;
-
-typedef enum { SCREEN_STAY, SCREEN_EXIT } ScreenResult;
 
 /* Takes ownership of *lib (it is zeroed). error may be NULL or "". */
 void screen_library_init(LibraryScreen *scr, Library *lib, const char *error);

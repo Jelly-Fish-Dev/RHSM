@@ -9,7 +9,7 @@
 
 #include "app/app.h"
 #include "app/dump.h"
-#include "platform/log.h"
+#include "mui/log.h"
 #include "platform/paths.h"
 #include "version.h"
 

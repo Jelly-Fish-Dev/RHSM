@@ -5,9 +5,9 @@
 #include <SDL/SDL.h>
 
 #include "core/library_loader.h"
-#include "platform/input.h"
-#include "platform/log.h"
-#include "ui/gfx.h"
+#include "mui/input.h"
+#include "mui/log.h"
+#include "mui/gfx.h"
 #include "ui/screen_library.h"
 #include "ui/screen_message.h"
 

@@ -5,7 +5,7 @@
 
 #include "core/library_print.h"
 #include "db/index.h"
-#include "platform/log.h"
+#include "mui/log.h"
 #include "platform/paths.h"
 #include "scan/scanner.h"
 

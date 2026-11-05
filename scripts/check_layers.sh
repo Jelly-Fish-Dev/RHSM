@@ -2,6 +2,7 @@
 # Fails if a source file includes a header from a higher layer.
 # Layers, lowest first (a layer may include its own and anything lower):
 #   util, platform, model, scan, db, core, ui, app, main.c
+# Miyoo-UI headers (mui/...) are outside the layers and may be included anywhere.
 # version.h may be included from anywhere.
 cd "$(dirname "$0")/../src" || exit 1
 

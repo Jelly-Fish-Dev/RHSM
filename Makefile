@@ -14,6 +14,9 @@
 # Per-machine settings (device IP etc.) go in local.mk, which git ignores. Example:
 #   RHSM_HOST ?= 192.168.1.50
 #
+# The shared UI library (Miyoo-UI: gfx, fonts, input, logging) is expected next
+# to this checkout at ../Miyoo-UI; set MUI_DIR to use another location.
+#
 # Inside the container the same Makefile does the real build (targets prefixed with _).
 
 -include local.mk
@@ -50,11 +53,17 @@ export SSH_ASKPASS_REQUIRE := force
 export DISPLAY ?= :0
 endif
 
-DOCKER_RUN := docker run --rm --platform linux/amd64 \
-	-v "$(CURDIR)":/root/workspace -w /root/workspace $(DOCKER_IMAGE)
+# Shared UI library. On the host it's mounted into the container at /root/Miyoo-UI.
+MUI_DIR       ?= ../Miyoo-UI
+MUI_HOST_DIR  := $(shell cd "$(MUI_DIR)" 2>/dev/null && pwd)
+DOCKER_MOUNTS := -v "$(CURDIR)":/root/workspace -v "$(MUI_HOST_DIR)":/root/Miyoo-UI \
+	-w /root/workspace
+
+DOCKER_RUN := docker run --rm --platform linux/amd64 $(DOCKER_MOUNTS) $(DOCKER_IMAGE)
+DOCKER_MAKE := $(DOCKER_RUN) make MUI_DIR=/root/Miyoo-UI
 
 .PHONY: all build dist debug zip shell clean deploy log debug-on debug-off gdb check check-host \
-	toolchain toolchain-rebuild _build _dist _gdbserver
+	check-mui toolchain toolchain-rebuild _build _dist _gdbserver
 
 ifeq ($(wildcard $(TOOLCHAIN_DIR)),)
 # ---------------------------------------------------------------- host side
@@ -72,8 +81,11 @@ check:
 toolchain-rebuild:
 	docker build --platform linux/amd64 --pull -t $(DOCKER_IMAGE) docker
 
-build dist: toolchain
-	$(DOCKER_RUN) make -j4 DEBUG=$(DEBUG) VERSION=$(VERSION) _dist
+check-mui:
+	@test -n "$(MUI_HOST_DIR)" || { echo "Miyoo-UI not found at MUI_DIR=$(MUI_DIR) (clone it next to this repo)"; exit 1; }
+
+build dist: toolchain check-mui
+	$(DOCKER_MAKE) -j4 DEBUG=$(DEBUG) VERSION=$(VERSION) _dist
 
 debug:
 	$(MAKE) DEBUG=1 dist
@@ -82,9 +94,8 @@ zip: dist
 	cd $(DIST_DIR) && rm -f $(APP)-$(VERSION).zip && \
 		zip -qr -X $(APP)-$(VERSION).zip App/$(APP) && echo "$(DIST_DIR)/$(APP)-$(VERSION).zip"
 
-shell: toolchain
-	docker run --rm -it --platform linux/amd64 \
-		-v "$(CURDIR)":/root/workspace -w /root/workspace $(DOCKER_IMAGE) bash
+shell: toolchain check-mui
+	docker run --rm -it --platform linux/amd64 $(DOCKER_MOUNTS) $(DOCKER_IMAGE) bash
 
 check-host:
 	@test -n "$(HOST)" || { echo "Set HOST=<device ip> (or export RHSM_HOST)"; exit 1; }
@@ -98,7 +109,7 @@ log: check-host
 	$(SSH) 'cat $(DEVICE_APP)/log.txt'
 
 $(BUILD_ROOT)/tools/gdbserver: | toolchain
-	$(DOCKER_RUN) make _gdbserver
+	$(DOCKER_MAKE) _gdbserver
 
 debug-on: check-host $(BUILD_ROOT)/tools/gdbserver
 	cat $(BUILD_ROOT)/tools/gdbserver | $(SSH) \
@@ -108,9 +119,8 @@ debug-on: check-host $(BUILD_ROOT)/tools/gdbserver
 debug-off: check-host
 	$(SSH) 'rm -f $(DEVICE_APP)/debug $(DEVICE_APP)/bin/gdbserver'
 
-gdb: check-host toolchain
-	docker run --rm -it --platform linux/amd64 \
-		-v "$(CURDIR)":/root/workspace -w /root/workspace $(DOCKER_IMAGE) \
+gdb: check-host toolchain check-mui
+	docker run --rm -it --platform linux/amd64 $(DOCKER_MOUNTS) $(DOCKER_IMAGE) \
 		$(CROSS_COMPILE)gdb -q $(BUILD_DIR)/$(TARGET) \
 			-ex "set sysroot $(SYSROOT)" \
 			-ex "target remote $(HOST):2345" \
@@ -123,6 +133,7 @@ else
 # ----------------------------------------------------------- container side
 
 CC    := $(CROSS_COMPILE)gcc
+AR    := $(CROSS_COMPILE)ar
 STRIP := $(CROSS_COMPILE)strip
 
 ARCH_FLAGS := -marm -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard
@@ -149,11 +160,14 @@ OBJS := $(SRCS:%.c=$(BUILD_DIR)/obj/%.o)
 
 $(BUILD_DIR)/obj/third_party/sqlite/sqlite3.o: CFLAGS := $(SQLITE_CFLAGS)
 
+include $(MUI_DIR)/mui.mk
+CFLAGS += $(MUI_CFLAGS)
+
 all: _dist
 
 _build: $(BUILD_DIR)/$(TARGET)
 
-$(BUILD_DIR)/$(TARGET): $(OBJS)
+$(BUILD_DIR)/$(TARGET): $(OBJS) $(MUI_LIB)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 $(BUILD_DIR)/obj/%.o: %.c
@@ -165,7 +179,7 @@ _dist: _build
 	mkdir -p $(APP_DIST)/bin $(APP_DIST)/res
 	cp app/config.json app/launch.sh app/icon.png $(APP_DIST)/
 	chmod +x $(APP_DIST)/launch.sh
-	cp -r res/fonts $(APP_DIST)/res/
+	cp -r $(MUI_FONTS) $(APP_DIST)/res/
 ifeq ($(DEBUG),1)
 	cp $(BUILD_DIR)/$(TARGET) $(APP_DIST)/bin/$(TARGET)
 else

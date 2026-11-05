@@ -6,7 +6,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#include "platform/log.h"
+#include "mui/log.h"
 #include "scan/filenames.h"
 #include "scan/romdirs.h"
 

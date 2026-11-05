@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "platform/log.h"
+#include "mui/log.h"
 #include "sqlite3.h"
 
 #define DB_CHECK(rc, db, what)                                              \
